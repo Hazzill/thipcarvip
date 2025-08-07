@@ -3,12 +3,9 @@ import { db } from '@/app/lib/firebaseAdmin';
 import { sendLineMessage } from '@/app/actions/lineActions';
 import { Timestamp, FieldPath } from 'firebase-admin/firestore';
 
-export async function GET() {
-    // Security Check: ตรวจสอบว่า request มาจาก Vercel Cron หรือไม่
-    // สามารถเพิ่มการตรวจสอบ 'x-vercel-cron-secret' header ได้เพื่อความปลอดภัยสูงสุด
-    
+export async function GET(request) {
     try {
-        console.log('Cron job triggered by Vercel: Starting daily report process...');
+        console.log('Cron job triggered: Starting daily report process...');
 
         const settingsRef = db.collection('settings').doc('notifications');
         const settingsDoc = await settingsRef.get();
@@ -16,19 +13,21 @@ export async function GET() {
             throw new Error("ยังไม่มีการตั้งค่าการส่ง Report");
         }
         const settingsData = settingsDoc.data();
-        const { reportRecipients } = settingsData;
+        const recipientUids = settingsData.reportRecipients;
 
-        if (!reportRecipients || reportRecipients.length === 0) {
+        if (!recipientUids || recipientUids.length === 0) {
+            console.log("No recipients configured. Exiting.");
             return NextResponse.json({ message: "ไม่มีผู้รับที่ถูกตั้งค่าไว้" });
         }
 
         const adminsRef = db.collection('admins');
-        const adminsSnapshot = await adminsRef.where(FieldPath.documentId(), 'in', reportRecipients).get();
+        const adminsSnapshot = await adminsRef.where(FieldPath.documentId(), 'in', recipientUids).get();
         const recipientLineIds = adminsSnapshot.docs
             .map(doc => doc.data().lineUserId)
             .filter(Boolean);
 
         if (recipientLineIds.length === 0) {
+            console.log("Recipients have no Line User ID. Exiting.");
             return NextResponse.json({ message: "ผู้รับที่เลือกไม่มี Line User ID" });
         }
 
@@ -56,10 +55,11 @@ export async function GET() {
         const sendPromises = recipientLineIds.map(lineId => sendLineMessage(lineId, reportMessage));
         await Promise.all(sendPromises);
 
+        console.log(`Successfully sent report to ${recipientLineIds.length} admins.`);
         return NextResponse.json({ success: true, message: `ส่ง Report สำเร็จไปยังแอดมิน ${recipientLineIds.length} คน` });
 
     } catch (error) {
-        console.error("Vercel Cron job error:", error);
+        console.error("Cron job error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
