@@ -50,15 +50,12 @@ const navLinks = [
     ]
   },
   {
-    name: "การเงินและรีวิว",
+    name: "ตั้งค่า",
     items: [
-      { name: "รายการชำระเงิน", href: "/payments" },
-      { name: "รีวิวลูกค้า", href: "/reviews" },
+     { name: "ลงทะเบียน", href: "/register-staff" },
+     { name: "ตั้งค่า", href: "/settings" },
     ]
   },
-  { name: "ลงทะเบียน", href: "/register-staff" },
-  { name: "ตั้งค่า", href: "/settings" },
-
 ];
 
 const NavLink = ({ link, currentPath }) => {
@@ -230,4 +227,5 @@ export default function AdminNavbar({
     </nav>
   );
 }
+
 
