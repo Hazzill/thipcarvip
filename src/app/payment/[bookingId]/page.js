@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import { db } from '@/app/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { generateQrCodePayload } from '@/app/actions/paymentActions';
@@ -11,41 +10,21 @@ import Image from 'next/image';
 // --- ใส่เบอร์ PromptPay ของคุณที่นี่ ---
 const PROMPTPAY_ID = '0623733306'; // <--- แก้ไขตรงนี้
 
-// Component ที่จะจัดการ useSearchParams
-function PaymentContent() {
+export default function PaymentPage({ params }) {
     const [booking, setBooking] = useState(null);
     const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const searchParams = useSearchParams();
 
-    const getBookingId = () => {
-        // ลอง query parameter ก่อน
-        const bookingIdFromQuery = searchParams.get('bookingId');
-        if (bookingIdFromQuery) {
-            return bookingIdFromQuery;
-        }
-
-        // ลอง liff.state
-        const liffState = searchParams.get('liff.state');
-        if (liffState) {
-            // ลบ slash แรกออกเพื่อใช้เป็น bookingId
-            return liffState.replace(/^\//, '');
-        }
-
-        return null;
-    };
+    // ใช้ React.use() สำหรับ Next.js 15+ เพื่อ unwrap params
+    const { bookingId } = React.use(params);
 
     useEffect(() => {
-        const bookingId = getBookingId();
-        
         if (!bookingId) {
             setError('ไม่พบ Booking ID');
             setLoading(false);
             return;
         }
-
-        console.log('Found Booking ID:', bookingId);
 
         const fetchBookingAndGenerateQR = async () => {
             setLoading(true);
@@ -61,6 +40,7 @@ function PaymentContent() {
                 setBooking(bookingData);
 
                 console.log('PROMPTPAY_ID:', PROMPTPAY_ID);
+                console.log('Booking ID:', bookingId);
 
                 const amount = bookingData.paymentInfo.totalPrice;
                 const dataUrl = await generateQrCodePayload(PROMPTPAY_ID, amount);
@@ -76,11 +56,11 @@ function PaymentContent() {
         };
 
         fetchBookingAndGenerateQR();
-    }, [searchParams]);
+    }, [bookingId]);
 
     if (loading) {
         return (
-            <div className="text-center p-10">
+            <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800 mx-auto mb-4"></div>
                 <p>กำลังสร้าง QR Code สำหรับชำระเงิน...</p>
             </div>
@@ -103,8 +83,8 @@ function PaymentContent() {
     }
 
     return (
-        <div className="max-w-md mx-auto p-4">
-            <div className="bg-white rounded-lg shadow-lg p-6 text-center">
+        <div className="bg-gray-100 max-w-md mx-auto rounded-2xl shadow-lg  ">
+            <div className="p-6 text-center">
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">ใบแจ้งค่าบริการ</h1>
                 <p className="text-sm text-gray-500 mb-4">
                     Booking ID: {booking?.id.substring(0, 6).toUpperCase()}
@@ -152,19 +132,5 @@ function PaymentContent() {
                 </button>
             </div>
         </div>
-    );
-}
-
-// Main component ที่ห่อ PaymentContent ด้วย Suspense
-export default function PaymentMainPage() {
-    return (
-        <Suspense fallback={
-            <div className="text-center p-10">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800 mx-auto mb-4"></div>
-                <p>กำลังโหลด...</p>
-            </div>
-        }>
-            <PaymentContent />
-        </Suspense>
     );
 }
