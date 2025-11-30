@@ -14,24 +14,24 @@ const statusTranslations = {
 };
 
 const StatusBadge = ({ status }) => {
-    const baseClasses = "px-2 py-1 text-xs font-semibold rounded-full";
+    const baseClasses = "px-3 py-1 text-xs font-bold rounded-full border";
     let colorClasses = "";
     switch (status) {
-        case 'completed': 
-            colorClasses = "bg-green-100 text-green-800"; 
+        case 'completed':
+            colorClasses = "bg-green-50 text-green-700 border-green-200";
             break;
         case 'cancelled':
         case 'noshow':
-            colorClasses = "bg-red-100 text-red-800"; 
+            colorClasses = "bg-red-50 text-red-700 border-red-200";
             break;
-        default: 
-            colorClasses = "bg-gray-100 text-gray-800";
+        default:
+            colorClasses = "bg-gray-50 text-gray-600 border-gray-200";
     }
     return <span className={`${baseClasses} ${colorClasses}`}>{statusTranslations[status] || status}</span>;
 };
 
 export default function BookingHistoryPage() {
-    const { profile, loading: liffLoading, error: liffError } = useLiffContext(); 
+    const { profile, loading: liffLoading, error: liffError } = useLiffContext();
     const [historyBookings, setHistoryBookings] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -59,60 +59,95 @@ export default function BookingHistoryPage() {
                 setLoading(false);
             }
         };
-        
+
         fetchHistory();
     }, [profile, liffLoading]);
 
     if (liffLoading) {
-        return <div className="p-4 text-center">Initializing LIFF...</div>;
+        return <div className="min-h-screen flex items-center justify-center text-gray-500">กำลังโหลด...</div>;
     }
 
     if (liffError) {
-        return <div className="p-4 text-center text-red-500">LIFF Error: {liffError}</div>;
+        return <div className="min-h-screen flex items-center justify-center text-red-500">LIFF Error: {liffError}</div>;
     }
 
     return (
-        <main className="space-y-4">
-            <div className="flex bg-gray-100 rounded-full shadow-sm p-1">
-                <Link href="../my-bookings" className="w-1/2 text-center py-2 text-gray-600 font-semibold">
-                    รายการจองของฉัน
-                </Link>
-                <button className="w-1/2 bg-slate-800 text-white rounded-full py-2 font-semibold">ประวัติการจอง</button>
-            </div>
+        <div className="pb-20">
+            <div className="max-w-md mx-auto space-y-6">
 
-            {loading ? (
-                <div className="text-center text-gray-500 pt-10">กำลังโหลดประวัติ...</div>
-            ) : historyBookings.length === 0 ? (
-                <div className="text-center text-gray-500 pt-10">
-                    <p>ยังไม่มีประวัติการจอง</p>
+                {/* Header Section */}
+                <div className="flex items-center justify-between pt-2">
+                    <h1 className="text-2xl font-bold text-gray-800">การจองของฉัน</h1>
+                    <Link href="/booking" className="w-10 h-10 flex items-center justify-center bg-white rounded-full text-primary hover:bg-gray-50 transition-colors shadow-md border border-gray-100">
+                        <span className="text-2xl font-light">+</span>
+                    </Link>
                 </div>
-            ) : (
-                <div className="space-y-4">
-                    {historyBookings.map(job => (
-                        <div key={job.id} className="bg-gray-100 rounded-lg shadow p-4 opacity-90">
-                            <div className="flex justify-between items-start mb-2">
-                                <div>
-                                    <p className="font-bold text-gray-800">
-                                        {job.pickupInfo.dateTime.toDate().toLocaleDateString('th-TH', {
-                                            year: 'numeric', month: 'long', day: 'numeric'
-                                        })}
-                                    </p>
-                                    <p className="text-sm text-gray-500">ID: {job.id.substring(0, 6).toUpperCase()}</p>
-                                </div>
-                                <StatusBadge status={job.status} />
-                            </div>
-                            <div className="flex items-center space-x-4">
-                                <Image src={job.vehicleInfo.imageUrl || '/placeholder.png'} alt="car" width={70} height={70} className="rounded-md object-cover flex-shrink-0"/>
-                                <div className="text-sm text-gray-700">
-                                    <p><strong>รถ:</strong> {job.vehicleInfo.brand} {job.vehicleInfo.model}</p>
-                                    <p><strong>รับ:</strong> {job.pickupInfo.address}</p>
-                                    <p><strong>ส่ง:</strong> {job.dropoffInfo.address}</p>
-                                </div>
-                            </div>
+
+                {/* Navigation Tabs */}
+                <div className="flex bg-white/60 backdrop-blur-md rounded-full p-1.5 border border-gray-200 shadow-sm">
+                    <Link href="../my-bookings" className="flex-1 text-center py-2.5 text-gray-500 text-sm font-medium hover:text-gray-700 transition-colors">
+                        กำลังดำเนินการ
+                    </Link>
+                    <button className="flex-1 bg-white text-gray-800 rounded-full py-2.5 text-sm font-bold shadow-sm transition-all border border-gray-100">
+                        ประวัติการจอง
+                    </button>
+                </div>
+
+                {/* Content */}
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-gray-500 text-sm">กำลังโหลดประวัติ...</p>
+                    </div>
+                ) : historyBookings.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 bg-white/50 rounded-3xl border border-gray-200 border-dashed">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-3xl">
+                            📜
                         </div>
-                    ))}
-                </div>
-            )}
-        </main>
+                        <p className="font-bold text-gray-800">ยังไม่มีประวัติการจอง</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {historyBookings.map(job => (
+                            <div key={job.id} className="bg-white border border-gray-100 rounded-3xl p-5 shadow-lg shadow-gray-200/50 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="font-bold text-gray-800 text-lg">
+                                            {job.pickupInfo.dateTime.toDate().toLocaleDateString('th-TH', {
+                                                year: 'numeric', month: 'long', day: 'numeric'
+                                            })}
+                                        </p>
+                                        <p className="text-xs text-gray-400 mt-1 font-medium">ID: {job.id.substring(0, 8).toUpperCase()}</p>
+                                    </div>
+                                    <StatusBadge status={job.status} />
+                                </div>
+
+                                <div className="flex items-start space-x-4 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                    <div className="relative w-16 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-sm">
+                                        <Image
+                                            src={job.vehicleInfo?.imageUrl || 'https://placehold.co/600x400/f1f5f9/94a3b8?text=No+Image'}
+                                            alt="car"
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    </div>
+                                    <div className="text-sm space-y-1 flex-1 min-w-0">
+                                        <p className="text-gray-800 font-bold truncate">{job.vehicleInfo?.brand} {job.vehicleInfo?.model}</p>
+                                        <div className="flex items-center text-gray-500 text-xs">
+                                            <span className="w-8 flex-shrink-0 font-medium">รับ:</span>
+                                            <span className="truncate">{job.pickupInfo?.address}</span>
+                                        </div>
+                                        <div className="flex items-center text-gray-500 text-xs">
+                                            <span className="w-8 flex-shrink-0 font-medium">ส่ง:</span>
+                                            <span className="truncate">{job.dropoffInfo?.address}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }

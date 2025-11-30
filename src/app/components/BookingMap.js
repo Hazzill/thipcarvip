@@ -5,14 +5,6 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 're
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// แก้ปัญหา default icon ของ Leaflet ที่อาจไม่แสดงผลใน Next.js
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
-
 // Component หมุดกลางจอ (เป็น UI overlay)
 function CenterMarker() {
   return (
@@ -32,20 +24,39 @@ function CenterMarker() {
 function MapController({ center, onLocationSelect }) {
   const map = useMap();
   const reverseGeocodeTimer = useRef(null);
+  const isMounted = useRef(false);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      if (reverseGeocodeTimer.current) clearTimeout(reverseGeocodeTimer.current);
+    };
+  }, []);
 
   // สั่งให้แผนที่เคลื่อนที่ตาม state `center`
   useEffect(() => {
-    map.setView(center, 16);
+    if (center && isMounted.current) {
+      map.setView(center, 16);
+    }
   }, [center, map]);
 
   // จัดการ event เมื่อผู้ใช้เลื่อนแผนที่เสร็จ
   useMapEvents({
     moveend: () => {
+      if (!isMounted.current) return;
+
       clearTimeout(reverseGeocodeTimer.current);
       reverseGeocodeTimer.current = setTimeout(() => {
-        const newCenter = map.getCenter();
-        if (onLocationSelect) {
-          onLocationSelect({ lat: newCenter.lat, lng: newCenter.lng });
+        if (!isMounted.current) return;
+
+        try {
+          const newCenter = map.getCenter();
+          if (onLocationSelect) {
+            onLocationSelect({ lat: newCenter.lat, lng: newCenter.lng });
+          }
+        } catch (error) {
+          console.error("Error getting map center:", error);
         }
       }, 500); // หน่วงเวลาเล็กน้อยเพื่อไม่ให้ยิง API ถี่เกินไป
     },
@@ -55,7 +66,6 @@ function MapController({ center, onLocationSelect }) {
 }
 
 // Component หลัก
-
 export default function BookingMap({ onLocationSelect }) {
   const initialCenter = [13.7563, 100.5018]; // BKK
   const [mapCenter, setMapCenter] = useState(initialCenter);
@@ -63,6 +73,16 @@ export default function BookingMap({ onLocationSelect }) {
   const [address, setAddress] = useState("เลื่อนแผนที่เพื่อกำหนดจุดหมายปลายทาง");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+
+  // Fix Leaflet icons
+  useEffect(() => {
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+  }, []);
 
   // ฟังก์ชันสำหรับค้นหาที่อยู่จากพิกัด (Reverse Geocoding)
   const handleLocationSelect = useCallback(async (locationData) => {
@@ -90,9 +110,13 @@ export default function BookingMap({ onLocationSelect }) {
     e.preventDefault();
     if (searchQuery.length < 3) return;
     const apiUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&countrycodes=th&limit=5`;
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-    setSearchResults(data);
+    try {
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      setSearchResults(data);
+    } catch (error) {
+      console.error("Search error:", error);
+    }
   };
 
   // ฟังก์ชันเมื่อเลือกผลการค้นหา
@@ -114,7 +138,7 @@ export default function BookingMap({ onLocationSelect }) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="ค้นหาสถานที่..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-500 text-gray-800"
         />
         <button type="submit" className="px-4 py-2 bg-primary text-white rounded-full hover:bg-slate-700">
           ค้นหา
@@ -123,12 +147,12 @@ export default function BookingMap({ onLocationSelect }) {
 
       {/* Search Results */}
       {searchResults.length > 0 && (
-        <div className="border rounded-lg max-h-40 overflow-y-auto bg-white">
+        <div className="border rounded-lg max-h-40 overflow-y-auto bg-white absolute z-50 w-full shadow-lg">
           {searchResults.map(place => (
             <div
               key={place.place_id}
               onClick={() => selectSearchResult(place)}
-              className="p-2 border-b cursor-pointer hover:bg-gray-100 text-sm"
+              className="p-2 border-b cursor-pointer hover:bg-gray-100 text-sm text-gray-800"
             >
               {place.display_name}
             </div>
@@ -137,8 +161,11 @@ export default function BookingMap({ onLocationSelect }) {
       )}
 
       {/* Map Container */}
-      <div style={{ position: 'relative' }}>
-        <MapContainer center={mapCenter}  zoom={13} style={{ height: '300px', width: '100%', borderRadius: '0.5rem' }}
+      <div style={{ position: 'relative', zIndex: 0 }}>
+        <MapContainer
+          center={initialCenter}
+          zoom={13}
+          style={{ height: '300px', width: '100%', borderRadius: '0.5rem' }}
         >
           <TileLayer attribution='&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapController center={mapCenter} onLocationSelect={handleLocationSelect} />

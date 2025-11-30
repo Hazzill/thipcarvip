@@ -39,8 +39,8 @@ function formatTimeAgo(timestamp) {
 
 // --- Nav Links with Grouping ---
 const navLinks = [
-  { name: "จัดการ", href: "/dashboard" },
-  { name: "รายงาน", href: "/analytics" },
+  { name: "Dashboard", href: "/dashboard" },
+  { name: "Analytics", href: "/analytics" },
   {
     name: "จัดการข้อมูล",
     items: [
@@ -50,12 +50,13 @@ const navLinks = [
     ]
   },
   {
-    name: "ตั้งค่า",
+    name: "การเงินและรีวิว",
     items: [
-     { name: "ลงทะเบียน", href: "/register-staff" },
-     { name: "ตั้งค่า", href: "/settings" },
+      { name: "รายการชำระเงิน", href: "/payments" },
+      { name: "รีวิวลูกค้า", href: "/reviews" },
     ]
   },
+  { name: "ลงทะเบียน", href: "/register-staff" },
 ];
 
 const NavLink = ({ link, currentPath }) => {
@@ -227,5 +228,3 @@ export default function AdminNavbar({
     </nav>
   );
 }
-
-
